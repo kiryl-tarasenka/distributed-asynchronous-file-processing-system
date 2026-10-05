@@ -3,17 +3,23 @@
   "compilerOptions": {
     "declaration": true,
     "declarationMap": true,
-    "esModuleInterop": true,
-    "incremental": false,
-    "isolatedModules": true,
-    "lib": ["es2022", "DOM", "DOM.Iterable"],
-    "module": "NodeNext",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "moduleDetection": "force",
-    "moduleResolution": "NodeNext",
-    "noUncheckedIndexedAccess": true,
-    "resolveJsonModule": true,
+    "moduleResolution": "bundler",
     "skipLibCheck": true,
     "strict": true,
-    "target": "ES2022"
+    "target": "ES2023",
+    "allowJs": true,
+    "types": ["node", "jest"],
+    "sourceMap": true,
+    "noImplicitThis": false,
+    "noFallthroughCasesInSwitch": true,
+    "noEmit": true,
+    "module": "ESNext",
+    "jsx": "react-jsx",
+    "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "esModuleInterop": true,
+    "isolatedModules": true
   }
 }

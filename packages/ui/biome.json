@@ -1,0 +1,16 @@
+{
+  "extends": ["@repo/biome-config"],
+  "files": {
+    "includes": ["**", "!.pnpm-store"]
+  },
+  "html": {
+    "formatter": {
+      "enabled": true
+    }
+  },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  }
+}
