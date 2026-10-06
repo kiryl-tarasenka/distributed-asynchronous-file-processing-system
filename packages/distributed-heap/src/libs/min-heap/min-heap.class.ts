@@ -1,60 +1,165 @@
-import type { Heapify } from '@heap-core/types';
+import type { HeapComparator } from '@heap-core/types';
 import type { IMinHeap } from './min-heap.types';
 
 export class MinHeap<T> implements IMinHeap<T> {
   private readonly heap: T[] = [];
 
+  constructor(private readonly isLess: HeapComparator<T>) {}
+
   /**
    * Returns the number of elements currently stored in the heap.
    */
-  public get size() {
+  public get size(): number {
     return this.heap.length;
   }
 
   /**
-   * Restores the min-heap property starting from the specified index.
+   * Returns the smallest element in the heap without removing it.
    *
-   * @param array - Array representing the heap.
-   * @param index - Index of the element from which heapification starts.
+   * @returns The smallest element, or `undefined` if the heap is empty.
    */
-  private readonly heapify: Heapify<T> = (array, index) => {
-    const heapSize = array.length;
-
-    let smallestIndex = index;
-    const leftChild = this.getLeftChild(smallestIndex);
-    const rightChild = this.getRightChild(smallestIndex);
-
-    if (leftChild < heapSize && array[leftChild] < array[smallestIndex]) {
-      smallestIndex = leftChild;
-    }
-
-    if (rightChild < heapSize && array[rightChild] < array[smallestIndex]) {
-      smallestIndex = rightChild;
-    }
-
-    if (smallestIndex !== index) {
-      [array[index], array[smallestIndex]] = [array[smallestIndex], array[index]];
-      this.heapify(array, smallestIndex);
-    }
-  };
-
-  /**
-   * Returns the index of the left child for the specified parent index.
-   *
-   * @param parentIndex - Index of the parent element.
-   * @returns Index of the left child.
-   */
-  private getLeftChild(parentIndex: number) {
-    return parentIndex * 2 + 1;
+  public get peek(): T | undefined {
+    return this.heap[0];
   }
 
   /**
-   * Returns the index of the right child for the specified parent index.
-   *
-   * @param parentIndex - Index of the parent element.
-   * @returns Index of the right child.
+   * Returns a shallow copy of the underlying array in heap order (not sorted).
    */
-  private getRightChild(parentIndex: number) {
+  public toArray(): T[] {
+    return [...this.heap];
+  }
+
+  /**
+   * Inserts a new element into the heap while preserving the min-heap property.
+   *
+   * @param element - Element to insert.
+   */
+  public insert(element: T): void {
+    this.heap.push(element);
+    this.siftUp(this.heap.length - 1);
+  }
+
+  /**
+   * Removes and returns the smallest element in the heap.
+   *
+   * @returns The smallest element, or `undefined` if the heap is empty.
+   */
+  public extractMin(): T | undefined {
+    return this.removeAt(0);
+  }
+
+  /**
+   * Removes the specified element from the heap. Elements are matched by strict equality,
+   * so objects must be passed by reference. Runs in O(n) because of the linear search.
+   *
+   * @param element - Element to remove.
+   * @returns The removed element, or `undefined` if the element was not found.
+   */
+  public delete(element: T): T | undefined {
+    const index = this.heap.indexOf(element);
+
+    if (index === -1) {
+      return undefined;
+    }
+
+    return this.removeAt(index);
+  }
+
+  private removeAt(index: number): T | undefined {
+    const lastIndex = this.heap.length - 1;
+
+    if (index > lastIndex) {
+      return undefined;
+    }
+
+    this.swap(index, lastIndex);
+
+    const removedElement = this.heap.pop();
+
+    if (index < this.heap.length) {
+      this.restoreAt(index);
+    }
+
+    return removedElement;
+  }
+
+  /**
+   * Moves the element at the specified index up or down, whichever direction violates the heap property.
+   */
+  private restoreAt(index: number): void {
+    if (index > 0 && this.isLess(this.heap[index], this.heap[this.getParent(index)])) {
+      this.siftUp(index);
+    } else {
+      this.siftDown(index);
+    }
+  }
+
+  /**
+   * Restores the min-heap property by moving an element towards the root.
+   *
+   * @param index - Index of the element to move up.
+   */
+  private siftUp(index: number): void {
+    let currentIndex = index;
+
+    while (currentIndex > 0) {
+      const parentIndex = this.getParent(currentIndex);
+
+      if (!this.isLess(this.heap[currentIndex], this.heap[parentIndex])) {
+        break;
+      }
+
+      this.swap(currentIndex, parentIndex);
+      currentIndex = parentIndex;
+    }
+  }
+
+  /**
+   * Restores the min-heap property by moving an element towards the leaves.
+   *
+   * @param index - Index of the element to move down.
+   */
+  private siftDown(index: number): void {
+    let currentIndex = index;
+    let smallestIndex = this.getSmallestOfParentAndChildren(currentIndex);
+
+    while (smallestIndex !== currentIndex) {
+      this.swap(currentIndex, smallestIndex);
+      currentIndex = smallestIndex;
+      smallestIndex = this.getSmallestOfParentAndChildren(currentIndex);
+    }
+  }
+
+  private getSmallestOfParentAndChildren(parentIndex: number): number {
+    const heapSize = this.heap.length;
+    const leftChild = this.getLeftChild(parentIndex);
+    const rightChild = this.getRightChild(parentIndex);
+    let smallestIndex = parentIndex;
+
+    if (leftChild < heapSize && this.isLess(this.heap[leftChild], this.heap[smallestIndex])) {
+      smallestIndex = leftChild;
+    }
+
+    if (rightChild < heapSize && this.isLess(this.heap[rightChild], this.heap[smallestIndex])) {
+      smallestIndex = rightChild;
+    }
+
+    return smallestIndex;
+  }
+
+  private swap(i: number, j: number): void {
+    [this.heap[i], this.heap[j]] = [this.heap[j], this.heap[i]];
+  }
+
+  private getParent(childIndex: number): number {
+    return Math.floor((childIndex - 1) / 2);
+  }
+
+  private getLeftChild(parentIndex: number): number {
+    return parentIndex * 2 + 1;
+  }
+
+  private getRightChild(parentIndex: number): number {
     return parentIndex * 2 + 2;
   }
 }

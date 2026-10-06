@@ -1,3 +1,3 @@
 export type VoidFunction = () => void;
 
-export type Heapify<T> = (array: T[], index: number) => void;
+export type HeapComparator<T> = (a: T, b: T) => boolean;

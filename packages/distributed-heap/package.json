@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test:heap": "tsx --test src/libs/min-heap/min-heap.test.ts",
+    "check-types": "tsc --noEmit -p ."
   },
   "keywords": [],
   "author": "",
@@ -14,6 +15,8 @@
     "@biomejs/biome": "^2.4.10",
     "@repo/biome-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
     "typescript": "7.0.2"
   }
 }

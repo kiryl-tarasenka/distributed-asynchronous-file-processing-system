@@ -2,9 +2,9 @@
   "extends": "@repo/typescript-config/base.json",
   "compilerOptions": {
     "strictNullChecks": true,
-    "baseUrl": "./src",
+    "types": ["node"],
     "paths": {
-      "@heap-core/*": ["./src/*"],
+      "@heap-core/*": ["./src/*"]
     }
   },
   "include": [

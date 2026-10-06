@@ -1,1 +1,1 @@
-export type { Heapify, VoidFunction } from './types';
+export type { HeapComparator, VoidFunction } from './types';
