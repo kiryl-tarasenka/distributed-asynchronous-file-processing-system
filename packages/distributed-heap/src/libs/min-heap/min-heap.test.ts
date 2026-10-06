@@ -15,6 +15,23 @@ const createNumberHeap = (values: number[] = []): MinHeap<number> => {
   return heap;
 };
 
+type Worker = {
+  id: string;
+  load: number;
+};
+
+const workerComparator: HeapComparator<Worker> = (a, b) => a.load < b.load;
+
+const createWorkerHeap = (workers: Worker[]): MinHeap<Worker> => {
+  const heap = new MinHeap<Worker>(workerComparator);
+
+  for (const worker of workers) {
+    heap.insert(worker);
+  }
+
+  return heap;
+};
+
 const drain = <T>(heap: MinHeap<T>): T[] => {
   const result: T[] = [];
 
@@ -51,6 +68,20 @@ const createRandom = (seed: number): (() => number) => {
 };
 
 const RANDOM_SEED = 20261006;
+
+/**
+ * Returns the numbers `0..length - 1` in a random order (Fisher-Yates), so all values are unique.
+ */
+const createShuffledRange = (length: number, random: () => number): number[] => {
+  const values = Array.from({ length }, (_, index) => index);
+
+  for (let i = values.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [values[i], values[j]] = [values[j], values[i]];
+  }
+
+  return values;
+};
 
 describe('Creation', () => {
   test('should create an empty heap', () => {
@@ -134,30 +165,32 @@ describe('Numbers', () => {
   });
 });
 
-describe('Duplicates', () => {
-  test('should support duplicate values', () => {
-    const heap = createNumberHeap([5, 2, 5, 1, 2, 1]);
+describe('Uniqueness', () => {
+  test('should throw when inserting an element that is already in the heap', () => {
+    const heap = createNumberHeap([5, 2]);
 
-    assert.equal(heap.size, 6);
-    assert.deepEqual(drain(heap), [1, 1, 2, 2, 5, 5]);
+    assert.throws(() => heap.insert(5), /already in the heap/);
+    assert.equal(heap.size, 2);
   });
 
-  test('should handle all elements being equal', () => {
-    const heap = createNumberHeap([5, 5, 5, 5, 5]);
+  test('should allow re-inserting an element after it was removed', () => {
+    const heap = createNumberHeap([5, 2]);
 
-    assert.equal(heap.size, 5);
-    assert.equal(heap.peek, 5);
+    heap.delete(5);
+    heap.insert(5);
+
+    assert.deepEqual(drain(heap), [2, 5]);
   });
 
-  test('should delete duplicate elements one by one', () => {
-    const heap = createNumberHeap([5, 5, 5]);
+  test('should report membership', () => {
+    const heap = createNumberHeap([5, 2]);
 
-    for (const expectedSize of [2, 1, 0]) {
-      assert.equal(heap.delete(5), 5);
-      assert.equal(heap.size, expectedSize);
-    }
+    assert.equal(heap.has(5), true);
+    assert.equal(heap.has(7), false);
 
-    assert.equal(heap.peek, undefined);
+    heap.extractMin();
+
+    assert.equal(heap.has(2), false);
   });
 });
 
@@ -268,21 +301,6 @@ describe('Strings', () => {
 });
 
 describe('Objects', () => {
-  type Worker = {
-    id: string;
-    load: number;
-  };
-
-  const createWorkerHeap = (workers: Worker[]): MinHeap<Worker> => {
-    const heap = new MinHeap<Worker>((a, b) => a.load < b.load);
-
-    for (const worker of workers) {
-      heap.insert(worker);
-    }
-
-    return heap;
-  };
-
   test('should return the least-loaded worker', () => {
     const leastLoaded = { id: 'worker-4', load: 10 };
     const heap = createWorkerHeap([
@@ -325,12 +343,75 @@ describe('Objects', () => {
     assert.equal(heap.delete({ id: 'worker-1', load: 10 }), undefined);
     assert.equal(heap.size, 1);
   });
+
+  test('should allow distinct objects with equal priority', () => {
+    const heap = createWorkerHeap([
+      { id: 'worker-1', load: 5 },
+      { id: 'worker-2', load: 5 },
+    ]);
+
+    assert.equal(heap.size, 2);
+  });
+});
+
+describe('Update', () => {
+  const createWorkers = (loads: number[]): Worker[] =>
+    loads.map((load, index) => ({ id: `worker-${index + 1}`, load }));
+
+  test('should move an element up after its priority decreased', () => {
+    const workers = createWorkers([10, 20, 30, 40, 50]);
+    const heap = createWorkerHeap(workers);
+
+    workers[4].load = 1;
+
+    assert.equal(heap.update(workers[4]), true);
+    assert.equal(heap.peek, workers[4]);
+    assertMinHeap(heap.toArray(), workerComparator);
+  });
+
+  test('should move an element down after its priority increased', () => {
+    const workers = createWorkers([10, 20, 30, 40, 50]);
+    const heap = createWorkerHeap(workers);
+
+    workers[0].load = 100;
+
+    assert.equal(heap.update(workers[0]), true);
+    assert.equal(heap.peek, workers[1]);
+    assert.deepEqual(
+      drain(heap).map((worker) => worker.id),
+      ['worker-2', 'worker-3', 'worker-4', 'worker-5', 'worker-1'],
+    );
+  });
+
+  test('should keep the heap intact when the priority did not change', () => {
+    const workers = createWorkers([10, 20, 30]);
+    const heap = createWorkerHeap(workers);
+    const before = heap.toArray();
+
+    assert.equal(heap.update(workers[1]), true);
+    assert.deepEqual(heap.toArray(), before);
+  });
+
+  test('should return false for an element that is not in the heap', () => {
+    const heap = createWorkerHeap(createWorkers([10, 20]));
+
+    assert.equal(heap.update({ id: 'worker-x', load: 1 }), false);
+    assert.equal(heap.size, 2);
+  });
+
+  test('should return false for an element that was removed', () => {
+    const workers = createWorkers([10, 20]);
+    const heap = createWorkerHeap(workers);
+
+    heap.extractMin();
+
+    assert.equal(heap.update(workers[0]), false);
+  });
 });
 
 describe('Edge cases', () => {
   test('should sort a large number of elements', () => {
-    const random = createRandom(RANDOM_SEED);
-    const values = Array.from({ length: 10_000 }, () => Math.floor(random() * 1_000_000));
+    const values = createShuffledRange(10_000, createRandom(RANDOM_SEED));
     const heap = createNumberHeap(values);
 
     assert.equal(heap.size, 10_000);
@@ -357,9 +438,47 @@ describe('Edge cases', () => {
     assert.equal(heap.peek, 1);
   });
 
-  test('should preserve min-heap property after random operations', () => {
+  test('should stay consistent under random inserts, deletes and updates', () => {
+    type Item = { priority: number };
+
     const random = createRandom(RANDOM_SEED);
-    const values = Array.from({ length: 1_000 }, () => Math.floor(random() * 10_000));
+    const itemComparator: HeapComparator<Item> = (a, b) => a.priority < b.priority;
+    const heap = new MinHeap<Item>(itemComparator);
+    const present = new Set<Item>();
+
+    for (let step = 0; step < 5_000; step++) {
+      const items = [...present];
+      const operation = items.length === 0 ? 0 : Math.floor(random() * 3);
+
+      if (operation === 0) {
+        const item = { priority: Math.floor(random() * 1_000) };
+
+        heap.insert(item);
+        present.add(item);
+      } else {
+        const item = items[Math.floor(random() * items.length)];
+
+        if (operation === 1) {
+          assert.equal(heap.delete(item), item);
+          present.delete(item);
+        } else {
+          item.priority = Math.floor(random() * 1_000);
+          assert.equal(heap.update(item), true);
+        }
+      }
+
+      assertMinHeap(heap.toArray(), itemComparator);
+    }
+
+    assert.equal(heap.size, present.size);
+    assert.deepEqual(
+      drain(heap).map((item) => item.priority),
+      [...present].map((item) => item.priority).toSorted((a, b) => a - b),
+    );
+  });
+
+  test('should preserve min-heap property after random operations', () => {
+    const values = createShuffledRange(1_000, createRandom(RANDOM_SEED));
     const heap = createNumberHeap();
 
     for (const value of values) {

@@ -1,8 +1,13 @@
 import type { HeapComparator } from '@heap-core/types';
 import type { IMinHeap } from './min-heap.types';
 
+/**
+ * Binary min-heap with an element-to-index map, so that `delete` and `update` run in O(log n).
+ * Elements must be unique (by strict equality / reference).
+ */
 export class MinHeap<T> implements IMinHeap<T> {
   private readonly heap: T[] = [];
+  private readonly indices = new Map<T, number>();
 
   constructor(private readonly isLess: HeapComparator<T>) {}
 
@@ -30,13 +35,28 @@ export class MinHeap<T> implements IMinHeap<T> {
   }
 
   /**
+   * Checks whether the element is in the heap.
+   */
+  public has(element: T): boolean {
+    return this.indices.has(element);
+  }
+
+  /**
    * Inserts a new element into the heap while preserving the min-heap property.
    *
    * @param element - Element to insert.
+   * @throws If the element is already in the heap.
    */
   public insert(element: T): void {
+    if (this.indices.has(element)) {
+      throw new Error('Element is already in the heap');
+    }
+
+    const index = this.heap.length;
+
     this.heap.push(element);
-    this.siftUp(this.heap.length - 1);
+    this.indices.set(element, index);
+    this.siftUp(index);
   }
 
   /**
@@ -50,19 +70,38 @@ export class MinHeap<T> implements IMinHeap<T> {
 
   /**
    * Removes the specified element from the heap. Elements are matched by strict equality,
-   * so objects must be passed by reference. Runs in O(n) because of the linear search.
+   * so objects must be passed by reference.
    *
    * @param element - Element to remove.
    * @returns The removed element, or `undefined` if the element was not found.
    */
   public delete(element: T): T | undefined {
-    const index = this.heap.indexOf(element);
+    const index = this.indices.get(element);
 
-    if (index === -1) {
+    if (index === undefined) {
       return undefined;
     }
 
     return this.removeAt(index);
+  }
+
+  /**
+   * Restores the element's position after its priority was changed in place
+   * (e.g. a worker's `load` was mutated while it is in the heap).
+   *
+   * @param element - Element whose priority has changed.
+   * @returns `true` if the element was found, `false` otherwise.
+   */
+  public update(element: T): boolean {
+    const index = this.indices.get(element);
+
+    if (index === undefined) {
+      return false;
+    }
+
+    this.restoreAt(index);
+
+    return true;
   }
 
   private removeAt(index: number): T | undefined {
@@ -75,6 +114,10 @@ export class MinHeap<T> implements IMinHeap<T> {
     this.swap(index, lastIndex);
 
     const removedElement = this.heap.pop();
+
+    if (removedElement !== undefined) {
+      this.indices.delete(removedElement);
+    }
 
     if (index < this.heap.length) {
       this.restoreAt(index);
@@ -149,6 +192,8 @@ export class MinHeap<T> implements IMinHeap<T> {
 
   private swap(i: number, j: number): void {
     [this.heap[i], this.heap[j]] = [this.heap[j], this.heap[i]];
+    this.indices.set(this.heap[i], i);
+    this.indices.set(this.heap[j], j);
   }
 
   private getParent(childIndex: number): number {
